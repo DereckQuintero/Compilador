@@ -5,68 +5,82 @@ import tkinter as tk
 from tkinter import scrolledtext
 from scanner import Scanner, ErrorLexico
 from parser_sintactico import Parser
+from analizador_semantico import AnalizadorSemantico
 
 class InterfazCompilador:
     def __init__(self, ventana_raiz):
         self.ventana = ventana_raiz
-        self.ventana.title("Compilador - Fases de Análisis")
-        self.ventana.geometry("750x600")
-        self.ventana.config(padx=15, pady=15)
+        self.ventana.title("Compilador - Fases: Léxica, Sintáctica y Semántica")
+        # Ventana más ancha para acomodar las 3 fases
+        self.ventana.geometry("1100x650")
         
         self.scanner = Scanner()
         self._construir_interfaz()
 
     def _construir_interfaz(self):
-        tk.Label(self.ventana, text="1. Ingresa el código fuente (Programa):", font=("Arial", 10, "bold")).pack(anchor='w')
-        self.entrada_texto = scrolledtext.ScrolledText(self.ventana, width=80, height=8, font=("Consolas", 10))
-        self.entrada_texto.pack(pady=5)
-        
-        # Código de prueba del documento base
-        codigo_prueba = "x = a @ b == 5;\nif (x > 100) {\n    y = 42 # 1;\n}"
-        self.entrada_texto.insert(tk.END, codigo_prueba)
+        # Panel superior de entrada
+        self.entrada_texto = scrolledtext.ScrolledText(self.ventana, width=120, height=8)
+        self.entrada_texto.pack(pady=10)
+        self.entrada_texto.insert(tk.END, "int a, b, c;\nfloat d;\na = b @ c;")
 
-        self.boton_analizar = tk.Button(self.ventana, text="Analizar Código", bg="#4CAF50", fg="white", font=("Arial", 10, "bold"), command=self.ejecutar_analisis)
-        self.boton_analizar.pack(pady=10)
+        tk.Button(self.ventana, text="Analizar Código", bg="#4CAF50", fg="white", 
+                  font=("Arial", 10, "bold"), command=self.ejecutar_analisis).pack(pady=5)
 
+        # Contenedor para los 3 paneles de salida
         panel_inferior = tk.Frame(self.ventana)
-        panel_inferior.pack(fill="both", expand=True)
+        panel_inferior.pack(fill="both", expand=True, padx=10, pady=10)
 
-        frame_tokens = tk.Frame(panel_inferior)
-        frame_tokens.pack(side="left", fill="both", expand=True, padx=(0, 10))
-        tk.Label(frame_tokens, text="2. Tokens Generados:", font=("Arial", 10, "bold")).pack(anchor="w")
-        self.salida_tokens = scrolledtext.ScrolledText(frame_tokens, width=40, height=14, font=("Consolas", 10))
-        self.salida_tokens.pack(fill="both", expand=True)
-
-        frame_parser = tk.Frame(panel_inferior)
-        frame_parser.pack(side="right", fill="both", expand=True, padx=(10, 0))
-        tk.Label(frame_parser, text="3. Resultado del Parser:", font=("Arial", 10, "bold")).pack(anchor="w")
-        self.salida_parser = tk.Text(frame_parser, width=40, height=14, font=("Consolas", 11, "bold"))
-        self.salida_parser.pack(fill="both", expand=True)
+        # 1. Panel del Scanner (Análisis Léxico)
+        self.salida_scanner = scrolledtext.ScrolledText(panel_inferior, width=30, height=20)
+        self.salida_scanner.pack(side="left", fill="both", expand=True, padx=5)
+        
+        # 2. Panel del Parser (Análisis Sintáctico / AST)
+        self.salida_parser = scrolledtext.ScrolledText(panel_inferior, width=35, height=20)
+        self.salida_parser.pack(side="left", fill="both", expand=True, padx=5)
+        
+        # 3. Panel del Semántico (Tabla de Símbolos)
+        self.salida_semantico = scrolledtext.ScrolledText(panel_inferior, width=35, height=20)
+        self.salida_semantico.pack(side="left", fill="both", expand=True, padx=5)
 
     def ejecutar_analisis(self):
         codigo = self.entrada_texto.get("1.0", tk.END).strip()
-        if not codigo: return
-
-        self.salida_tokens.delete("1.0", tk.END)
+        
+        # Limpiar pantallas
+        self.salida_scanner.delete("1.0", tk.END)
         self.salida_parser.delete("1.0", tk.END)
+        self.salida_semantico.delete("1.0", tk.END)
         
         try:
-            # 1. Scanner
+            # --- FASE 1: SCANNER ---
             tokens = self.scanner.analizar(codigo)
-            self.salida_tokens.insert(tk.END, "LEXEMA\t\tTIPO\t\tCÓDIGO\n")
-            self.salida_tokens.insert(tk.END, "-"*45 + "\n")
+            self.salida_scanner.insert(tk.END, "--- ANÁLISIS LÉXICO ---\n")
             for t in tokens:
-                if t['tipo'] != 'EOF':
-                    self.salida_tokens.insert(tk.END, f"{t['lexema']:<12}\t{t['tipo']:<15}\t{t['codigo']}\n")
+                self.salida_scanner.insert(tk.END, f"{t['lexema']} -> {t['tipo']} ({t['codigo']})\n")
 
-            # 2. Parser
+            # --- FASE 2: PARSER ---
             parser = Parser(tokens)
-            exito, mensaje = parser.analizar()
+            arbol_ast = parser.analizar()
+            self.salida_parser.insert(tk.END, "--- ÁRBOL AST (SINTÁCTICO) ---\n")
+            for nodo in arbol_ast:
+                self.salida_parser.insert(tk.END, f"{nodo}\n\n")
+
+            # --- FASE 3: SEMÁNTICO ---
+            semantico = AnalizadorSemantico()
+            errores, tabla = semantico.analizar(arbol_ast)
             
-            self.salida_parser.config(fg="green" if exito else "red")
-            self.salida_parser.insert(tk.END, "\n" + mensaje)
-            
-        except ErrorLexico as error:
-            self.salida_tokens.insert(tk.END, f"\n¡ERROR!\n{error}")
-            self.salida_parser.config(fg="red")
-            self.salida_parser.insert(tk.END, "\nEl análisis sintáctico no inició debido a un error léxico.")
+            self.salida_semantico.insert(tk.END, "--- ANÁLISIS SEMÁNTICO ---\n\n")
+            if errores:
+                self.salida_semantico.insert(tk.END, "¡ERRORES ENCONTRADOS!\n")
+                for e in errores: 
+                    self.salida_semantico.insert(tk.END, f"- {e}\n")
+            else:
+                self.salida_semantico.insert(tk.END, "Análisis sin errores.\n\n")
+                
+            self.salida_semantico.insert(tk.END, "--- TABLA DE SÍMBOLOS ---\n")
+            self.salida_semantico.insert(tk.END, "Nombre\tTipo\tDirección\n")
+            self.salida_semantico.insert(tk.END, "-"*30 + "\n")
+            for nombre, info in tabla.items():
+                self.salida_semantico.insert(tk.END, f"{nombre}\t{info['tipo']}\t{info['direccion']}\n")
+                    
+        except Exception as e:
+            self.salida_scanner.insert(tk.END, f"\nError en el flujo:\n{e}")

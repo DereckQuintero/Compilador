@@ -16,81 +16,54 @@ class Parser:
 
     def match(self, codigo_esperado):
         if self.token_actual and self.token_actual['codigo'] == codigo_esperado:
+            valor = self.token_actual['lexema']
             self.avanzar()
-        else:
-            esperado = [k for k, v in TOKEN_CODES.items() if v == codigo_esperado][0]
-            encontrado = self.token_actual['lexema'] if self.token_actual else 'Nada'
-            raise SyntaxError(f"Se esperaba '{esperado}' pero se encontró '{encontrado}'.")
+            return valor
+        raise SyntaxError(f"Se esperaba token código {codigo_esperado} pero se encontró '{self.token_actual['lexema']}'.")
 
     def parse_Programa(self):
-        # Programa -> Sentencia Programa | cadena vacía
-        while self.token_actual['codigo'] in [TOKEN_CODES['ID'], TOKEN_CODES['IF']]:
-            self.parse_Sentencia()
+        instrucciones = []
+        while self.token_actual['codigo'] in [TOKEN_CODES['INT'], TOKEN_CODES['FLOAT'], TOKEN_CODES['ID']]:
+            if self.token_actual['codigo'] in [TOKEN_CODES['INT'], TOKEN_CODES['FLOAT']]:
+                instrucciones.append(self.parse_Declaracion())
+            elif self.token_actual['codigo'] == TOKEN_CODES['ID']:
+                instrucciones.append(self.parse_Asignacion())
+        return instrucciones
 
-    def parse_Sentencia(self):
-        # Sentencia -> Asignacion | EstructuraIf
-        if self.token_actual['codigo'] == TOKEN_CODES['ID']:
-            self.parse_Asignacion()
-        elif self.token_actual['codigo'] == TOKEN_CODES['IF']:
-            self.parse_EstructuraIf()
-        else:
-            raise SyntaxError(f"Instrucción no válida iniciando con '{self.token_actual['lexema']}'")
+    def parse_Declaracion(self):
+        # int a, b, c ; | float d ;
+        tipo = self.token_actual['lexema']
+        self.avanzar()
+        variables = []
+        variables.append(self.match(TOKEN_CODES['ID']))
+        
+        while self.token_actual['codigo'] == TOKEN_CODES['COMA']:
+            self.avanzar()
+            variables.append(self.match(TOKEN_CODES['ID']))
+            
+        self.match(TOKEN_CODES['PUNTO_COMA'])
+        return {'tipo_nodo': 'declaracion', 'tipo_dato': tipo, 'variables': variables}
 
     def parse_Asignacion(self):
-        # Asignacion -> Id = E ;
-        self.match(TOKEN_CODES['ID'])
+        # id = id @ id ;
+        variable = self.match(TOKEN_CODES['ID'])
         self.match(TOKEN_CODES['ASIGNACION'])
-        self.parse_E()
+        expresion_izq = self.token_actual['lexema']
+        self.avanzar() # Simplificado para avanzar el primer factor
+        operador = self.token_actual['lexema']
+        self.avanzar() # Avanza operador
+        expresion_der = self.token_actual['lexema']
+        self.avanzar() # Avanza segundo factor
         self.match(TOKEN_CODES['PUNTO_COMA'])
-
-    def parse_EstructuraIf(self):
-        # EstructuraIf -> if ( Condicion ) { Programa }
-        self.match(TOKEN_CODES['IF'])
-        self.match(TOKEN_CODES['PAR_ABRE'])
-        self.parse_Condicion()
-        self.match(TOKEN_CODES['PAR_CIERRA'])
-        self.match(TOKEN_CODES['LLAVE_ABRE'])
-        self.parse_Programa()
-        self.match(TOKEN_CODES['LLAVE_CIERRA'])
-
-    def parse_Condicion(self):
-        # Condicion -> E OpRel E
-        self.parse_E()
-        self.match(TOKEN_CODES['OP_REL'])
-        self.parse_E()
-
-    def parse_E(self):
-        # Expresión Aritmética (Maneja sumas @ y restas #)
-        self.parse_T()
-        while self.token_actual['codigo'] in [TOKEN_CODES['OP_SUMA'], TOKEN_CODES['OP_RESTA']]:
-            self.avanzar() # Consumimos el operador
-            self.parse_T()
-
-    def parse_T(self):
-        # Términos (Maneja multiplicaciones == y divisiones &)
-        self.parse_F()
-        while self.token_actual['codigo'] in [TOKEN_CODES['OP_IGUAL_MULT'], TOKEN_CODES['OP_DIV']]:
-            self.avanzar() # Consumimos el operador
-            self.parse_F()
-
-    def parse_F(self):
-        # Factores: ID, NUM, o ( E )
-        if self.token_actual['codigo'] == TOKEN_CODES['ID']:
-            self.match(TOKEN_CODES['ID'])
-        elif self.token_actual['codigo'] == TOKEN_CODES['NUM']:
-            self.match(TOKEN_CODES['NUM'])
-        elif self.token_actual['codigo'] == TOKEN_CODES['PAR_ABRE']:
-            self.match(TOKEN_CODES['PAR_ABRE'])
-            self.parse_E()
-            self.match(TOKEN_CODES['PAR_CIERRA'])
-        else:
-            raise SyntaxError(f"Se esperaba un número, variable o '(' pero se encontró '{self.token_actual['lexema']}'.")
+        
+        return {
+            'tipo_nodo': 'asignacion', 
+            'variable': variable, 
+            'arbol_expresion': {'izq': expresion_izq, 'op': operador, 'der': expresion_der}
+        }
 
     def analizar(self):
-        try:
-            self.parse_Programa()
-            if self.token_actual['codigo'] != TOKEN_CODES['EOF']:
-                raise SyntaxError(f"Código inesperado al final: '{self.token_actual['lexema']}'")
-            return True, "Programa Sintácticamente OK"
-        except SyntaxError as e:
-            return False, f"Syntax Error! {str(e)}"
+        arbol_ast = self.parse_Programa()
+        if self.token_actual['codigo'] != TOKEN_CODES['EOF']:
+            raise SyntaxError(f"Código inesperado al final: '{self.token_actual['lexema']}'")
+        return arbol_ast

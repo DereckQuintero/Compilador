@@ -4,14 +4,14 @@
 import re
 from config_tokens import TOKEN_CODES
 
-class ErrorLexico(Exception):
-    pass
+class ErrorLexico(Exception): pass
 
 class Scanner:
     def __init__(self):
-        # Definición de tokens basados en la gramática
         self.especificacion_tokens = [
             ('IF',           r'\bif\b'),
+            ('INT',          r'\bint\b'),
+            ('FLOAT',        r'\bfloat\b'),
             ('OP_IGUAL_MULT',r'=='),
             ('OP_SUMA',      r'@'),
             ('OP_RESTA',     r'#'),
@@ -19,6 +19,7 @@ class Scanner:
             ('ASIGNACION',   r'='),
             ('OP_REL',       r'[<>]'),
             ('PUNTO_COMA',   r';'),
+            ('COMA',         r','),
             ('PAR_ABRE',     r'\('),
             ('PAR_CIERRA',   r'\)'),
             ('LLAVE_ABRE',   r'\{'),
@@ -33,23 +34,15 @@ class Scanner:
     def analizar(self, codigo_fuente):
         tokens_encontrados = []
         numero_linea = 1
-        
         for coincidencia in re.finditer(self.regex_completa, codigo_fuente):
             tipo_token = coincidencia.lastgroup
             valor_token = coincidencia.group(tipo_token)
-            
             if tipo_token == 'ESPACIOS':
                 numero_linea += valor_token.count('\n')
                 continue
             elif tipo_token == 'ERROR':
-                raise ErrorLexico(f'Error Léxico en línea {numero_linea}: Carácter "{valor_token}"')
+                raise ErrorLexico(f'Error Léxico línea {numero_linea}: "{valor_token}"')
             else:
-                # Agregamos el formato de tabla (lexema, tipo, codigo)
-                tokens_encontrados.append({
-                    'lexema': valor_token,
-                    'tipo': tipo_token,
-                    'codigo': TOKEN_CODES[tipo_token]
-                })
-                
+                tokens_encontrados.append({'lexema': valor_token, 'tipo': tipo_token, 'codigo': TOKEN_CODES[tipo_token]})
         tokens_encontrados.append({'lexema': 'EOF', 'tipo': 'EOF', 'codigo': TOKEN_CODES['EOF']})
         return tokens_encontrados
