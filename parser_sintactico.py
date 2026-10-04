@@ -23,8 +23,9 @@ class Parser:
 
     def parse_Programa(self):
         instrucciones = []
-        while self.token_actual['codigo'] in [TOKEN_CODES['INT'], TOKEN_CODES['FLOAT'], TOKEN_CODES['ID']]:
-            if self.token_actual['codigo'] in [TOKEN_CODES['INT'], TOKEN_CODES['FLOAT']]:
+# Agrega TOKEN_CODES['CHAR'] y TOKEN_CODES['STRING'] a las validaciones:
+        while self.token_actual['codigo'] in [TOKEN_CODES['INT'], TOKEN_CODES['FLOAT'], TOKEN_CODES['CHAR'], TOKEN_CODES['STRING'], TOKEN_CODES['ID']]:
+            if self.token_actual['codigo'] in [TOKEN_CODES['INT'], TOKEN_CODES['FLOAT'], TOKEN_CODES['CHAR'], TOKEN_CODES['STRING']]:
                 instrucciones.append(self.parse_Declaracion())
             elif self.token_actual['codigo'] == TOKEN_CODES['ID']:
                 instrucciones.append(self.parse_Asignacion())

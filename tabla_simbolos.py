@@ -4,28 +4,50 @@
 class TablaSimbolos:
     def __init__(self):
         self.simbolos = {}
-        self.siguiente_direccion = 0  # Empezamos en la dirección 0
+        self.offset_actual = 0x0000  # Iniciamos en el offset 0000[cite: 16]
+        self.segmento = "001E"       # Segmento fijo según apuntes del pizarrón[cite: 16]
 
     def agregar_simbolo(self, nombre, tipo):
-        # 1. Checar que no haya declaraciones múltiples[cite: 14]
         if nombre in self.simbolos:
-            raise Exception(f"Variable '{nombre}' ya ha sido declarada previamente.")
+            raise Exception(f"Variable '{nombre}' ya ha sido declarada.")
         
-        # 2. Registrar en la tabla con su dirección[cite: 15]
-        direccion = self.siguiente_direccion
-        self.simbolos[nombre] = {'tipo': tipo, 'direccion': direccion}
-        
-        # 3. Calcular memoria: int = 16 bits (2 bytes), float = 32 bits (4 bytes)[cite: 16]
+        # Determinar el tamaño en memoria y la directiva Intel
         if tipo == 'int':
-            self.siguiente_direccion += 2
+            size = 2
+            directiva = 'DW'        # Define Word (16 bits)
         elif tipo == 'float':
-            self.siguiente_direccion += 4
+            size = 4
+            directiva = 'DD'        # Define Double (32 bits)
+        elif tipo == 'char':
+            size = 1
+            directiva = 'DB'        # Define Byte (8 bits)
+        elif tipo == 'string':
+            size = 80               # 80 bytes según diferencia 0009 a 0059[cite: 16]
+            directiva = 'DB 80 DUP(?)' # Arreglo de 80 bytes
+        else:
+            size = 2
+            directiva = 'DW'
+
+        # Formatear la dirección como 001E:OFFSET (en Hexadecimal mayúscula)[cite: 16, 17]
+        direccion_hex = f"{self.segmento}:{self.offset_actual:04X}"
+        
+        self.simbolos[nombre] = {
+            'tipo': tipo, 
+            'direccion': direccion_hex,
+            'size': size,
+            'directiva': directiva
+        }
+        
+        # Aumentar el offset para la siguiente variable
+        self.offset_actual += size
 
     def checar_declaracion(self, nombre):
-        # Asegurar que no se usan identificadores no declarados[cite: 14]
         if nombre not in self.simbolos:
             raise Exception(f"Variable '{nombre}' no declarada.")
         return self.simbolos[nombre]['tipo']
 
     def obtener_tabla(self):
         return self.simbolos
+
+
+    

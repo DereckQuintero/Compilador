@@ -12,6 +12,8 @@ class Scanner:
             ('IF',           r'\bif\b'),
             ('INT',          r'\bint\b'),
             ('FLOAT',        r'\bfloat\b'),
+            ('CHAR',         r'\bchar\b'),    
+            ('STRING',       r'\bstring\b'),  
             ('OP_IGUAL_MULT',r'=='),
             ('OP_SUMA',      r'@'),
             ('OP_RESTA',     r'#'),
